@@ -34,7 +34,15 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #else
     #define ABS fabsf
 #endif
-
+#if defined(POWER8)
+#define vector_load(ptr,immediate_index) vec_vsx_ld( immediate_index * 16 ,ptr )
+#else
+#define vector_load(ptr,immediate_index) ptr[immediate_index]
+#endif
+typedef __vector float __vf;
+typedef __vector unsigned int __vui;
+typedef __vector unsigned char __vuchar;
+typedef __vector bool int __vbi;
 /**
  * Find  maximum index 
  * Warning: requirements n>0  and n % 64 == 0
@@ -46,44 +54,44 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static BLASLONG siamax_kernel_64(BLASLONG n, FLOAT *x, FLOAT *maxf) {
     BLASLONG index;
     BLASLONG i=0;
-    register __vector unsigned int static_index0 = {0,1,2,3};
-    register __vector unsigned int temp0 = {4,4,4, 4}; //temporary vector register
-    register __vector unsigned int temp1=  temp0<<1;  //{8,8,8,8}
-    register __vector unsigned int static_index1=static_index0 +temp0;//{4,5,6,7};
-    register __vector unsigned int static_index2=static_index0 +temp1;//{8,9,10,11};
-    register __vector unsigned int static_index3=static_index1 +temp1; //{12,13,14,15};
+    register __vui static_index0 = {0,1,2,3};
+    register __vui temp0 = {4,4,4, 4}; //temporary vector register
+    register __vui temp1=  temp0<<1;  //{8,8,8,8}
+    register __vui static_index1=static_index0 +temp0;//{4,5,6,7};
+    register __vui static_index2=static_index0 +temp1;//{8,9,10,11};
+    register __vui static_index3=static_index1 +temp1; //{12,13,14,15};
     temp0=vec_xor(temp0,temp0);
     temp1=temp1 <<1 ; //{16,16,16,16}
-    register __vector unsigned int quadruple_indices=temp0;//{0,0,0,0}
-    register __vector float quadruple_values={0,0,0,0};
-    register __vector float * v_ptrx=(__vector float *)x;
+    register __vui quadruple_indices=temp0;//{0,0,0,0}
+    register __vf quadruple_values={0,0,0,0};
+    register __vf * v_ptrx=(__vf *)x;
     for(; i<n; i+=64){
        //absolute temporary vectors
-       register __vector float v0=vec_abs(v_ptrx[0]);
-       register __vector float v1=vec_abs(v_ptrx[1]);
-       register __vector float v2=vec_abs(v_ptrx[2]);
-       register __vector float v3=vec_abs(v_ptrx[3]);
-       register __vector float v4=vec_abs(v_ptrx[4]);
-       register __vector float v5=vec_abs(v_ptrx[5]);
-       register __vector float v6=vec_abs(v_ptrx[6]);       
-       register __vector float v7=vec_abs(v_ptrx[7]);
+       register __vf v0=vec_abs(vector_load(v_ptrx, 0));
+       register __vf v1=vec_abs(vector_load(v_ptrx, 1));
+       register __vf v2=vec_abs(vector_load(v_ptrx, 2));
+       register __vf v3=vec_abs(vector_load(v_ptrx, 3));
+       register __vf v4=vec_abs(vector_load(v_ptrx, 4));
+       register __vf v5=vec_abs(vector_load(v_ptrx, 5));
+       register __vf v6=vec_abs(vector_load(v_ptrx, 6));       
+       register __vf v7=vec_abs(vector_load(v_ptrx, 7));
        //cmp quadruple pairs
-       register __vector bool int r1=vec_cmpgt(v1,v0);
-       register __vector bool int r2=vec_cmpgt(v3,v2);
-       register __vector bool int r3=vec_cmpgt(v5,v4);
-       register __vector bool int r4=vec_cmpgt(v7,v6);
+       register __vbi r1=vec_cmpgt(v1,v0);
+       register __vbi r2=vec_cmpgt(v3,v2);
+       register __vbi r3=vec_cmpgt(v5,v4);
+       register __vbi r4=vec_cmpgt(v7,v6);
       
        //select
-       register __vector unsigned int ind0_first= vec_sel(static_index0,static_index1,r1);
-       register __vector float vf0= vec_sel(v0,v1,r1);
+       register __vui ind0_first= vec_sel(static_index0,static_index1,r1);
+       register __vf vf0= vec_sel(v0,v1,r1);
 
-       register __vector unsigned int ind1= vec_sel(static_index2,static_index3,r2);
-       register __vector float vf1= vec_sel(v2,v3,r2);
+       register __vui ind1= vec_sel(static_index2,static_index3,r2);
+       register __vf vf1= vec_sel(v2,v3,r2);
 
-       register __vector unsigned int ind2= vec_sel(static_index0,static_index1,r3);
+       register __vui ind2= vec_sel(static_index0,static_index1,r3);
        v0=vec_sel(v4,v5,r3);
 
-       register __vector unsigned int ind3= vec_sel(static_index2,static_index3,r4);
+       register __vui ind3= vec_sel(static_index2,static_index3,r4);
        v1=vec_sel(v6,v7,r4);
 
        // cmp selected
@@ -112,25 +120,25 @@ static BLASLONG siamax_kernel_64(BLASLONG n, FLOAT *x, FLOAT *maxf) {
        temp0+=temp1; //temp0+32
        //second part of 32
        // absolute temporary vectors
-       v0=vec_abs(v_ptrx[0]);
-       v1=vec_abs(v_ptrx[1]);
-       v2=vec_abs(v_ptrx[2]);
-       v3=vec_abs(v_ptrx[3]);
-       v4=vec_abs(v_ptrx[4]);
-       v5=vec_abs(v_ptrx[5]);
-       v6=vec_abs(v_ptrx[6]);       
-       v7=vec_abs(v_ptrx[7]);
+       v0=vec_abs(vector_load(v_ptrx, 0));
+       v1=vec_abs(vector_load(v_ptrx, 1));
+       v2=vec_abs(vector_load(v_ptrx, 2));
+       v3=vec_abs(vector_load(v_ptrx, 3));
+       v4=vec_abs(vector_load(v_ptrx, 4));
+       v5=vec_abs(vector_load(v_ptrx, 5));
+       v6=vec_abs(vector_load(v_ptrx, 6));       
+       v7=vec_abs(vector_load(v_ptrx, 7));
        //cmp quadruple pairs
        r1=vec_cmpgt(v1,v0);
        r2=vec_cmpgt(v3,v2);
        r3=vec_cmpgt(v5,v4);
        r4=vec_cmpgt(v7,v6);
        //select
-       register __vector unsigned int ind0_second= vec_sel(static_index0,static_index1,r1);
-       register __vector float vv0= vec_sel(v0,v1,r1);
+       register __vui ind0_second= vec_sel(static_index0,static_index1,r1);
+       register __vf vv0= vec_sel(v0,v1,r1);
 
        ind1= vec_sel(static_index2,static_index3,r2);
-       register __vector float vv1= vec_sel(v2,v3,r2);
+       register __vf vv1= vec_sel(v2,v3,r2);
 
        ind2= vec_sel(static_index0,static_index1,r3);
        v0=vec_sel(v4,v5,r3);
@@ -180,14 +188,14 @@ static BLASLONG siamax_kernel_64(BLASLONG n, FLOAT *x, FLOAT *maxf) {
     // otherwise we will assign index of the maximum value
     float a1,a2,a3,a4;
     unsigned int i1,i2,i3,i4;
-    a1=vec_extract(quadruple_values,0);
-    a2=vec_extract(quadruple_values,1);
-    a3=vec_extract(quadruple_values,2);
-    a4=vec_extract(quadruple_values,3);
-    i1=vec_extract(quadruple_indices,0);
-    i2=vec_extract(quadruple_indices,1);
-    i3=vec_extract(quadruple_indices,2);
-    i4=vec_extract(quadruple_indices,3);
+    a1= quadruple_values[0];
+    a2= quadruple_values[1];
+    a3= quadruple_values[2];
+    a4= quadruple_values[3];
+    i1= quadruple_indices[0];
+    i2= quadruple_indices[1];
+    i3= quadruple_indices[2];
+    i4= quadruple_indices[3];
     if(a1==a2){
       index=i1>i2?i2:i1;
     }else if(a2>a1){
